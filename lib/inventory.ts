@@ -3,7 +3,7 @@ import {updateDocument,type JsonStorage} from './atomic-store.ts';
 import {listProducts} from './products.ts';
 export type Location={id:string;name:string;active:boolean};
 export type Roll={id:string;label:string;productId:string;productName:string;sku:string;widthIn:number;feet:number;locationId:string;bin:string;notes:string;status:'available'|'used'|'removed';updatedAt:string;createdAt:string};
-export type Inventory={locations:Location[];rolls:Roll[]};
+export type Inventory={locations:Location[];rolls:Roll[];importKeys?:string[]};
 const path='inventory/catalog.json';
 const initial:Inventory={locations:[{id:'dtp-st-george',name:'DTP St. George',active:true},{id:'dtp-vegas',name:'DTP Vegas',active:true}],rolls:[]};
 export class InventoryError extends Error{}
