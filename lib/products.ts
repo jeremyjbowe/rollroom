@@ -1,0 +1,6 @@
+import {randomUUID} from 'node:crypto';
+import {validateProduct,type Product} from './calculator.ts';
+import {updateDocument,type JsonStorage} from './atomic-store.ts';
+const path='products/catalog.json';
+export async function listProducts(storage:JsonStorage){return ((await storage.read<Product[]>(path))?.value??[]).sort((a,b)=>a.name.localeCompare(b.name));}
+export async function saveProduct(storage:JsonStorage,body:Record<string,unknown>){const fields=validateProduct(body);const id=body.id;if(id!==undefined&&id!==''&&(typeof id!=='string'||!/^[a-f0-9-]{36}$/.test(id)))throw new Error('Invalid product ID.');return updateDocument(storage,path,[] as Product[],rows=>{if(id){const old=rows.find(p=>p.id===id);if(!old)throw new Error('Product no longer exists.');if(body.updatedAt!==old.updatedAt)throw new Error('This product changed. Close the editor and refresh before editing again.');const updatedAt=new Date(Math.max(Date.now(),Date.parse(old.updatedAt)+1)).toISOString();return {value:rows.map(p=>p.id===id?{...fields,updatedAt,id:id as string}:p),result:true};}if(rows.length>=1000)throw new Error('The library supports up to 1,000 products.');return {value:[...rows,{...fields,id:randomUUID()}],result:true};});}

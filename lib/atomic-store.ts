@@ -1,0 +1,5 @@
+export type Document<T>={value:T;etag:string};
+export interface JsonStorage {read<T>(path:string):Promise<Document<T>|null>;write<T>(path:string,value:T,etag:string|null):Promise<void>}
+export class Conflict extends Error{}
+export async function updateDocument<T,R>(storage:JsonStorage,path:string,initial:T,change:(value:T)=>{value:T;result:R}){for(let attempt=0;attempt<6;attempt++){const old=await storage.read<T>(path);const next=change(old?old.value:structuredClone(initial));try{await storage.write(path,next.value,old?.etag??null);return next.result;}catch(e){if(!(e instanceof Conflict))throw e;}}throw new Error('Another change is in progress. Please try again.');}
+export async function consumeLoginAttempt(storage:JsonStorage,now=Date.now()){return updateDocument(storage,'auth/login-attempts.json',{start:now,count:0},old=>{const current=now-old.start>=15*60*1000?{start:now,count:0}:old;if(current.count>=10)return {value:current,result:false};return {value:{start:current.start,count:current.count+1},result:true};});}
