@@ -41,3 +41,13 @@ Feet = π × (rollOD² − coreOD²) / (4 × thicknessMil / 1000) / 12. Diameter
 ## Migration
 
 The previous ChatGPT Sites / Cloudflare version remains in Git history at `71d15078b581dffba80a063a4d4c62af619a4077`. Its live service is separate and is not updated by this Vercel app. The source library was checked during migration and contained zero products. No data import was necessary. Roll tracking remains out of scope.
+
+## Remnant inventory
+
+`/inventory` is available without signing in. Operators can save remnants from the calculator or add them directly, record roll width in inches and estimated usable footage, choose a location/bin, update remaining footage after printing, and print a paper label with a stable roll ID. Search matches product, SKU, roll ID and bin; filters support location, minimum length, minimum width and status. The location filter is remembered on the station's browser.
+
+The admin-only `/admin/locations` page manages locations. DTP St. George and DTP Vegas are the initial defaults. Locations with available rolls cannot be removed until those rolls are moved or removed. Location removal is reversible. Roll removal and “used up” are also reversible and retained in history; restoration requires confirming a currently active product, location and positive remaining footage.
+
+Inventory is a separate private Blob document at `inventory/catalog.json`. Writes use conditional ETags and per-roll update timestamps to prevent overwriting another station's edits. Operators intentionally have anonymous read/write access to inventory; product and location changes still require the admin session. Origin checks reject cross-site browser submissions. Do not put confidential information in operator-visible notes. The current catalog supports up to 10,000 roll records (including history).
+
+Labels print through the browser on ordinary paper and can also be saved as PDF in the print dialog. Reprint after changing footage. The application does not automatically subtract a print job: operators enter the remeasured usable length.
