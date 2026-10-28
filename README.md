@@ -14,7 +14,7 @@ Production must be publicly accessible in Vercel Deployment Protection so operat
 
 ## Admin access
 
-Open `/admin`, enter username `admin` and the password. Sessions expire after eight hours. Sign out from Products. To rotate the password, generate a new hash, replace `ADMIN_PASSWORD_HASH` in Vercel, and redeploy; old sessions become invalid. Rotating `ADMIN_SESSION_SECRET` also invalidates sessions. There is no password reset endpoint or first-visitor administrator registration.
+Open `/admin`, enter username `admin` and the password. Sessions expire after eight hours. Sign out from Products. To change the password, use Admin → Change password (`/admin/password`). Enter the current password and confirm a new 16–256-character passphrase. The salted scrypt hash is persisted in private Blob storage and takes effect immediately; all existing admin sessions, including the changing session, become invalid. Rotating `ADMIN_SESSION_SECRET` also invalidates sessions. There is no anonymous password-reset endpoint or first-visitor administrator registration. Emergency recovery: generate a fresh hash, replace `ADMIN_PASSWORD_HASH` in Vercel, and redeploy. A changed environment hash supersedes the stored credential. Normal deployments preserve the password set in Admin.
 
 Login attempts are limited to ten per 15-minute window across the single account, using an atomic record in private storage. Passwords are salted and scrypt-hashed. Sessions use signed HS256 tokens, password-version binding, HttpOnly/Secure/SameSite=Strict cookies, and strict same-origin write checks. Authentication fails closed if configuration or storage is unavailable.
 
@@ -57,3 +57,5 @@ Each newly printed roll label includes a black-and-white SVG QR code with a four
 ## Press-room collection worksheet
 
 Admin includes PDF and Excel downloads at `/api/admin/worksheet?format=pdf` and `?format=xlsx`. Both require the admin session and are returned as private, non-cached attachments. Templates are bundled from `assets/templates` using explicit Next.js output tracing. The blank form has 13 remnant rows on US Letter landscape, with location/date at the top and material, SKU, width, estimated usable footage, rack/bin, existing roll ID and notes columns. The PDF is the fixed print layout; Excel has Letter landscape and a one-page print area configured. Completed sheets are entered manually in Inventory; this is not an automated import.
+
+Password changes require a valid current session, current-password verification, matching confirmation, and same-origin POST. Attempts are limited to five per 15-minute window. Atomic conditional writes prevent simultaneous changes from overwriting one another. Only a hash and environment-credential fingerprint are stored at `auth/admin-credentials.json`; no plaintext password is stored or returned. Credential read failures fail closed.
