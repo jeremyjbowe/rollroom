@@ -4,7 +4,9 @@ A press-room roll-length calculator with a shared D1 product library.
 
 ## Pilot setup
 
-Open the private deployed site, sign in, and visit Products → Set up library. The signed-in account becomes the single product administrator. Complete this step before inviting other users. Add actual measured products; no sample data is deployed. All product writes are authorized server-side against that administrator's stable Site identity. Other admitted users can read the library and calculate. Site access remains owner-private until explicitly changed.
+The calculator and active calculation product fields are public: no station sign-in is needed. The /admin page requires ChatGPT sign-in and the registered administrator's stable Site identity. All product writes enforce the same authorization on the server. Anonymous and non-admin visitors cannot read notes, audit metadata, or archived products.
+
+The owner registered while the site was owner-private. The setup endpoint is now permanently closed (403), including when settings are absent. Never reopen first-visitor registration on a public site. Only change administrator ownership through an explicitly authorized maintenance workflow.
 
 Record total caliper including adhesive and liner, actual core outside diameter, and measurement date. Admin supports adding, editing, and archiving products. The library is shared across stations; calculations are transient. Refresh or refocus to retrieve product updates. There is no roll tracking in this version.
 
@@ -20,4 +22,4 @@ Checks: `node --experimental-strip-types --test tests/calculator.test.ts`, `pnpm
 
 ## Verified
 
-Five calculation/validation tests, TypeScript checking, production build. Browser checks: admin setup, product creation, shared-library load, imperial/metric equivalence, buildup equivalence, invalid roll diameter, job fit and close-fit output. Production library starts empty. Manual physical validation remains required.
+Eight calculation/access/validation tests, TypeScript checking, production build. Browser checks: admin setup, product creation, shared-library load, imperial/metric equivalence, buildup equivalence, invalid roll diameter, job fit and close-fit output. Production library starts empty. Manual physical validation remains required.
