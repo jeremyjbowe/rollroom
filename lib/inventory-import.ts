@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import {previewCatalogImport} from './catalog-import.ts';
 import {unzipSync,zipSync,strFromU8,strToU8} from 'fflate';
 import {createHash,randomUUID} from 'node:crypto';
 import {listProducts} from './products.ts';
@@ -6,9 +7,9 @@ import {readInventory,type Roll,type Inventory} from './inventory.ts';
 import {updateDocument,type JsonStorage} from './atomic-store.ts';
 export class ImportError extends Error{}
 export type ImportRow={row:number;name:string;sku:string;widthIn:number;feet:number;bin:string;notes:string;productId:string;errors:string[]};
-const norm=(s:string)=>s.trim().replace(/\s+/g,' ').toLowerCase();
-function cellText(v:ExcelJS.CellValue){if(v===null||v===undefined)return '';if(typeof v==='string'||typeof v==='number')return String(v).trim();if(typeof v==='object'&&'richText' in v)return v.richText.map(x=>x.text).join('').trim();throw new ImportError('Use typed values, not formulas, links, dates or errors, in inventory rows.');}
-function amount(s:string,max:number){if(!/^\d+(\.\d+)?$/.test(s))return NaN;const n=Number(s);return n>0&&n<=max?n:NaN;}
+export const norm=(s:string)=>s.trim().replace(/\s+/g,' ').toLowerCase();
+export function cellText(v:ExcelJS.CellValue){if(v===null||v===undefined)return '';if(typeof v==='string'||typeof v==='number')return String(v).trim();if(typeof v==='object'&&'richText' in v)return v.richText.map(x=>x.text).join('').trim();throw new ImportError('Use typed values, not formulas, links, dates or errors, in inventory rows.');}
+export function amount(s:string,max:number){if(!/^\d+(\.\d+)?$/.test(s))return NaN;const n=Number(s);return n>0&&n<=max?n:NaN;}
 export function importDigest(rows:ImportRow[],locationId:string){const canonical=rows.map(r=>JSON.stringify([r.productId,r.widthIn,r.feet,r.bin,r.notes])).sort();return createHash('sha256').update(JSON.stringify([locationId,canonical])).digest('hex');}
 export async function loadImportWorkbook(bytes:Uint8Array){
  if(bytes.length>2*1024*1024)throw new ImportError('Choose an Excel file smaller than 2 MB.');
@@ -20,11 +21,12 @@ export async function loadImportWorkbook(bytes:Uint8Array){
  const workbook=new ExcelJS.Workbook();try{await workbook.xlsx.load(new Uint8Array(zipSync(files)).buffer);}catch{throw new ImportError('Unable to read this Excel file. Use the downloaded .xlsx template.');}
  return workbook;
 }
-export async function previewImport(storage:JsonStorage,bytes:Uint8Array,locationId:string){
+export async function previewImport(storage:JsonStorage,bytes:Uint8Array,locationId:string,measuredAt=new Date().toISOString().slice(0,10)){
  const workbook=await loadImportWorkbook(bytes);
  if(workbook.worksheets.length!==1)throw new ImportError('Upload one worksheet at a time. Save each location or sheet in its own Excel file.');
  const sheet=workbook.worksheets[0];if(sheet.rowCount>1000||sheet.columnCount>32)throw new ImportError('This worksheet is too large. Use the Rollroom template.');
  let header=0;for(let i=1;i<=Math.min(sheet.rowCount,20);i++){if(norm(sheet.getCell(i,2).text)==='material / product name'&&norm(sheet.getCell(i,3).text)==='sku / shop code'){header=i;break;}}
+ if(header&&norm(sheet.getCell(header,4).text)==='core od (in)')return previewCatalogImport(storage,sheet,header,locationId,measuredAt);
  if(!header||norm(sheet.getCell(header,4).text)!=='width (in)'||!['est. usable length (ft)','usable length (ft, estimated)'].includes(norm(sheet.getCell(header,5).text))||norm(sheet.getCell(header,6).text)!=='rack / bin'||norm(sheet.getCell(header,7).text)!=='roll id (if labeled)'||norm(sheet.getCell(header,8).text)!=='notes / condition')throw new ImportError('The columns do not match the Rollroom worksheet. Download a fresh template and keep its headers.');
  const [products,inventory]=await Promise.all([listProducts(storage),readInventory(storage)]);
  const location=inventory.locations.find(l=>l.id===locationId&&l.active);if(!location)throw new ImportError('Choose an active location.');
@@ -47,7 +49,7 @@ export async function previewImport(storage:JsonStorage,bytes:Uint8Array,locatio
  if(!rows.length)throw new ImportError('No completed roll rows found. Fill in the blank rows below the worksheet headers.');
  if(rows.length>200)throw new ImportError('Import up to 200 rolls at a time.');
  const digest=importDigest(rows,locationId);const duplicate=(inventory.importKeys??[]).includes(digest);
- return {rows,location,digest,duplicate,canImport:!duplicate&&rows.every(r=>!r.errors.length)};
+ return {mode:'rolls' as const,productCount:0,rollCount:rows.length,measuredAt,rows,location,digest,duplicate,canImport:!duplicate&&rows.every(r=>!r.errors.length)};
 }
 export async function commitImport(storage:JsonStorage,rows:ImportRow[],locationId:string,digest:string){
  if(!rows.length||rows.some(r=>r.errors.length)||digest!==importDigest(rows,locationId))throw new ImportError('Preview the worksheet again.');
